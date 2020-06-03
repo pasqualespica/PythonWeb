@@ -7,8 +7,7 @@ PEOPLE collection
 from datetime import datetime
 
 # 3rd party modules
-from flask import make_response, abort
-
+from flask import make_response, abort, request
 
 def get_timestamp():
     return datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
@@ -41,9 +40,10 @@ def read_all():
 
     :return:        json string of list of people
     """
-    # Create the list of people from our data
-    return [PEOPLE[key] for key in sorted(PEOPLE.keys())]
-
+    length = int(request.args.get('length', len(PEOPLE)))
+    print("remember..", type(length))
+    
+    return [PEOPLE[key] for key in sorted(PEOPLE.keys())][:length:]
 
 def read_one(lname):
     """
@@ -74,6 +74,8 @@ def create(person):
     :param person:  person to create in people structure
     :return:        201 on success, 406 on person exists
     """
+    # req_data = request.data
+    # print(req_data)
     lname = person.get("lname", None)
     fname = person.get("fname", None)
 
