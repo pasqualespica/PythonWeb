@@ -92,6 +92,8 @@ The idea is that the Controller has a strong link to both the Model and the View
 ---
 
 ## PART-2
+https://github.com/realpython/materials/tree/master/flask-connexion-rest-part-2
+
 As some noted in the comments for Part 1, the PEOPLE structure is re-initialized every time the application is restarted. In this article, you’ll learn how to store the PEOPLE structure, and the actions the API provides, to a database using SQLAlchemy and Marshmallow.
 
 **SQLAlchemy** provides an Object Relational Model (ORM)

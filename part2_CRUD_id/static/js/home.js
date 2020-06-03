@@ -153,6 +153,8 @@ ns.controller = (function (m, v) {
 
     // Create our event handlers
     $('#create').click(function (e) {
+
+        console.log("create...")
         let fname = $fname.val(),
             lname = $lname.val();
 
@@ -188,7 +190,11 @@ ns.controller = (function (m, v) {
     });
 
     $('#delete').click(function (e) {
+        console.log(`Dajeeeeeee`)
+
         let person_id = $person_id.val();
+
+        console.log(`Dajeeeeeee ${person_id}`)
 
         e.preventDefault();
 
@@ -255,4 +261,3 @@ ns.controller = (function (m, v) {
         console.log(error_msg);
     })
 }(ns.model, ns.view));
-
