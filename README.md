@@ -423,3 +423,183 @@ def create(person):
 
 
 ```
+
+
+## PART-3
+https://github.com/realpython/materials/tree/master/flask-connexion-rest-part-3
+
+In Part 2 of this series, you added the ability to save changes made through the REST API to a database using SQLAlchemy and learned how to serialize that data for the REST API using Marshmallow. Connecting the REST API to a database so that the application can make changes to existing data and create new data is great and makes the application much more useful and robust.
+
+That’s only part of the power a database offers, however. An even more powerful feature is the `R` part of `RDBMS systems`: `relationships`. In a database, a relationship is the ability to connect two or more tables together in a meaningful way. In this article, you’ll learn how to implement relationships and turn your Person database into a mini-blogging web application.
+
+### Who This Article Is For
+- Part 1 of this series guided you through building a REST API, and 
+- Part 2 showed you how to connect that REST API to a database.
+
+This article expands your programming tool belt further. You’ll learn how to create hierarchical data structures represented as `one-to-many` relationships by SQLAlchemy. In addition, you’ll extend the REST API you’ve already built to provide CRUD (Create, Read, Update, and Delete) support for the elements in this hierarchical structure.
+
+The web application presented in Part 2 will have its HTML and JavaScript files modified in major ways to create a more fully functional mini-blogging application. You can review the final version of the code from Part 2 in the GitHub repository for that article.
+
+### Additional Dependencies
+There are no new Python dependencies beyond what was required for the Part 2 article. However, you will be using two new JavaScript modules in the web application to makes things easier and more consistent. The two modules are the following:
+
+1. Handlebars.js is a templating engine for JavaScript, much like Jinja2 for Flask.
+2. Moment.js is a datetime parsing and formatting module that makes displaying UTC timestamps easier.
+
+You don’t have to download either of these, as the web application will get them directly from the Cloudflare CDN (Content Delivery Network), as you’re already doing for the jQuery module.
+
+### People Data Extended for Blogging
+In Part 2, the People data existed as a dictionary in the build_database.py Python code. This is what you used to populate the database with some initial data. You’re going to modify the People data structure to give each person a list of notes associated with them. The new People data structure will look like this:
+```py
+# Data to initialize database with
+PEOPLE = [
+    {
+        "fname": "Doug",
+        "lname": "Farrell",
+        "notes": [
+            ("Cool, a mini-blogging application!", "2019-01-06 22:17:54"),
+            ("This could be useful", "2019-01-08 22:17:54"),
+            ("Well, sort of useful", "2019-03-06 22:17:54"),
+        ],
+    },
+    {
+        "fname": "Kent",
+        "lname": "Brockman",
+        "notes": [
+            (
+                "I'm going to make really profound observations",
+                "2019-01-07 22:17:54",
+            ),
+            (
+                "Maybe they'll be more obvious than I thought",
+                "2019-02-06 22:17:54",
+            ),
+        ],
+    },
+    {
+        "fname": "Bunny",
+        "lname": "Easter",
+        "notes": [
+            ("Has anyone seen my Easter eggs?", "2019-01-07 22:47:54"),
+            ("I'm really late delivering these!", "2019-04-06 22:17:54"),
+        ],
+    },
+]
+```
+
+Each person in the People dictionary now includes a key called notes, which is associated with a list containing tuples of data. Each tuple in the notes list represents a single note containing the content and a timestamp. The timestamps are initialized (rather than dynamically created) to demonstrate ordering later on in the REST API.
+
+Each single person is associated with multiple notes, and each single note is associated with only one person. This hierarchy of data is known as a one-to-many relationship, where a single parent object is related to many child objects. You’ll see how this one-to-many relationship is managed in the database with SQLAlchemy.
+
+### Initialize the Database
+
+You can see that working with the notes collection in the Person object instance p is just like working with any other list in Python. `SQLAlchemy` takes care of the underlying one-to-many relationship information when the db.session.commit() call is made.
+
+For example, just like a Person instance has its primary key field person_id initialized by SQLAlchemy when it’s committed to the database, instances of Note will have their primary key fields initialized. In addition, the Note foreign key person_id will also be initialized with the primary key value of the Person instance it’s associated with.
+
+Here’s an example instance of a Person object before the db.session.commit() in a kind of pseudocode:
+
+```py
+Person (
+    person_id = None
+    lname = 'Farrell'
+    fname = 'Doug'
+    timestamp = None
+    notes = [
+        Note (
+            note_id = None
+            person_id = None
+            content = 'Cool, a mini-blogging application!'
+            timestamp = '2019-01-06 22:17:54'
+        ),
+        Note (
+            note_id = None
+            person_id = None
+            content = 'This could be useful'
+            timestamp = '2019-01-08 22:17:54'
+        ),
+        Note (
+            note_id = None
+            person_id = None
+            content = 'Well, sort of useful'
+            timestamp = '2019-03-06 22:17:54'
+        )
+    ]
+)
+```
+
+Here’s the example Person object after the `db.session.commit()`:
+
+```py
+Person (
+    person_id = 1
+    lname = 'Farrell'
+    fname = 'Doug'
+    timestamp = '2019-02-02 21:27:10.336'
+    notes = [
+        Note (
+            note_id = 1
+            person_id = 1
+            content = 'Cool, a mini-blogging application!'
+            timestamp = '2019-01-06 22:17:54'
+        ),
+        Note (
+            note_id = 2
+            person_id = 1
+            content = 'This could be useful'
+            timestamp = '2019-01-08 22:17:54'
+        ),
+        Note (
+            note_id = 3
+            person_id = 1
+            content = 'Well, sort of useful'
+            timestamp = '2019-03-06 22:17:54'
+        )
+    ]
+)
+```
+
+The important difference between the two is that the primary key of the Person and Note objects has been initialized. The database engine took care of this as the objects were created because of the auto-incrementing feature of primary keys discussed in Part 2.
+
+Additionally, the person_id foreign key in all the Note instances has been initialized to reference its parent. This happens because of the order in which the Person and Note objects are created in the database.
+
+SQLAlchemy is aware of the relationship between Person and Note objects. When a Person object is committed to the person database table, SQLAlchemy gets the person_id primary key value. That value is used to initialize the foreign key value of person_id in a Note object before it’s committed to the database.
+
+SQLAlchemy takes care of this database housekeeping work because of the information you passed when the Person.notes attribute was initialized with the db.relationship(...) object.
+
+In addition, the Person.timestamp attribute has been initialized with the current timestamp.
+
+Running the build_database.py program from the command line (in the virtual environment will re-create the database with the new additions, getting it ready for use with the web application. This command line will rebuild the database:
+
+```bash
+$ python build_database.py
+```
+
+### Update REST API
+You’ve updated the SQLAlchemy models and used them to update the people.db database. Now it’s time to update the REST API to provide access to the new notes information. Here’s the REST API you built in Part 2:
+
+| Action    |   HTTP Verb   |   URL Path                 |   Description |
+| --------- |:-------------:| ------------:              |  ------------:|
+| Create	POST	         |   /api/people	         |  URL to create a new person                        |
+| Read	    GET	             |   /api/people	         |  URL to read a collection of people                | 
+| Read	    GET	             |   /api/people/{person_id} |	URL to read a single person by person_id          |
+| Update	PUT	             |   /api/people/{person_id} |	URL to update an existing person by person_id     |
+| Delete	DELETE	         |   /api/people/{person_id} |	URL to delete an existing person by person_id     |
+
+The REST API above provides HTTP URL paths to collections of things, and to the things themselves. You can get a list of people or interact with a single person from that list of people. This path style refines what’s returned in a left-to-right manner, getting more granular as you go.
+
+You’ll continue this left-to-right pattern to get more granular and access the notes collections. Here’s the extended REST API you’ll create in order to provide notes to the mini-blog web application:
+
+| Action    |   HTTP Verb   |   URL Path                                |   Description |
+| --------- |:-------------:| ------------:                             |  ------------:|
+|Create	    | POST	        | /api/people/{person_id}/notes	            | URL to create a new note                                      |
+|Read	    | GET	        | /api/people/{person_id}/notes/{note_id}	| URL to read a single person’s single note                     |
+|Update	    | PUT	        | /api/people/{person_id}/notes/{note_id}	| URL to update a single person’s single note                   |
+|Delete	    | DELETE	    | /api/people/{person_id}/notes/{note_id}	| URL to delete a single person’s single note                   |
+|Read	    | GET	        | /api/notes	                            | URL to get all notes for all people sorted by note.timestamp  |
+
+
+
+### Implement the API
+With the updated REST API defined in the `swagger.yml` file, you’ll need to update the implementation provided by the Python modules. 
+This means updating existing module files, like `models.py` and `people.py`, and creating a new module file called `notes.py` to implement support for Notes in the extended REST API.
